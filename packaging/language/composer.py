@@ -114,7 +114,7 @@ def has_changed(string):
     else:
         return True
 
-def composer_install(module, command, options):
+def exec_composer(module, command, options):
     php_path      = module.get_bin_path("php", True, ["/usr/local/bin"])
     composer_path = module.get_bin_path("composer", True, ["/usr/local/bin"])
     cmd           = "%s %s %s %s" % (php_path, composer_path, command, " ".join(options))
@@ -133,43 +133,52 @@ def main():
             no_plugins           = dict(default="no", type="bool", aliases=["no-plugins"]),
             optimize_autoloader  = dict(default="yes", type="bool", aliases=["optimize-autoloader"]),
             ignore_platform_reqs = dict(default="no", type="bool", aliases=["ignore-platform-reqs"]),
+            config 		 = dict(default="no", type="str", required=False),
+            config_global 	 = dict(default="no", type="str", required=False, aliases=["config-global"]),
         ),
         supports_check_mode=True
     )
 
     options = []
 
-    # Default options
-    options.append('--no-ansi')
-    options.append('--no-progress')
-    options.append('--no-interaction')
-
-    options.extend(['--working-dir', os.path.abspath(module.params['working_dir'])])
-
     # Get composer command with fallback to default
-    command = module.params['command']
+    if module.params['config'] :
+	command = "config"
+        options.append(module.params['config'])
+    elif module.params['config-global'] :
+	command = "config"
+        options.append('-g')
+        options.append(module.params['config'])
+    else:
+    	command = module.params['command']
 
-    # Prepare options
-    if module.params['prefer_source']:
-        options.append('--prefer-source')
-    if module.params['prefer_dist']:
-        options.append('--prefer-dist')
-    if module.params['no_dev']:
-        options.append('--no-dev')
-    if module.params['no_scripts']:
-        options.append('--no-scripts')
-    if module.params['no_plugins']:
-        options.append('--no-plugins')
-    if module.params['optimize_autoloader']:
-        options.append('--optimize-autoloader')
-    if module.params['ignore_platform_reqs']:
-        options.append('--ignore-platform-reqs')
+        # Default options
+        options.append('--no-ansi')
+        options.append('--no-progress')
+        options.append('--no-interaction')
+        options.extend(['--working-dir', os.path.abspath(module.params['working_dir'])])
 
-    if module.check_mode:
-        options.append('--dry-run')
-
-    rc, out, err = composer_install(module, command, options)
-
+        # Prepare options
+        if module.params['prefer_source']:
+            options.append('--prefer-source')
+        if module.params['prefer_dist']:
+            options.append('--prefer-dist')
+        if module.params['no_dev']:
+            options.append('--no-dev')
+        if module.params['no_scripts']:
+            options.append('--no-scripts')
+        if module.params['no_plugins']:
+            options.append('--no-plugins')
+        if module.params['optimize_autoloader']:
+            options.append('--optimize-autoloader')
+        if module.params['ignore_platform_reqs']:
+            options.append('--ignore-platform-reqs')
+    
+        if module.check_mode:
+            options.append('--dry-run')
+    
+    rc, out, err = exec_composer(module, command, options)
+ 
     if rc != 0:
         output = parse_out(err)
         module.fail_json(msg=output)
